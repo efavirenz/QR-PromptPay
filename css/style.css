@@ -1,0 +1,460 @@
+/* ==========================================================================
+   QR Code Generator PWA — style.css
+   Modern / minimalist, centred layout, 8 colour themes.
+
+   Each theme defines four variables:
+     --bg             light tint used for the page background
+     --primary        dark / vibrant colour for buttons and accents
+     --primary-hover  slightly darker shade for hover/pressed states
+     --on-primary     text colour placed on --primary (checked for WCAG AA, ≥ 4.5:1)
+   ========================================================================== */
+
+/* ---------- Themes ---------- */
+:root,
+[data-theme="blue"]   { --bg: #eaf2ff; --primary: #1d4ed8; --primary-hover: #1e40af; --on-primary: #ffffff; }
+[data-theme="green"]  { --bg: #e8f6ec; --primary: #137637; --primary-hover: #14532d; --on-primary: #ffffff; }
+[data-theme="red"]    { --bg: #fdecec; --primary: #991b1b; --primary-hover: #7f1d1d; --on-primary: #ffffff; }
+[data-theme="purple"] { --bg: #f3ecff; --primary: #6d28d9; --primary-hover: #5b21b6; --on-primary: #ffffff; }
+[data-theme="orange"] { --bg: #fff0e0; --primary: #c2410c; --primary-hover: #9a3412; --on-primary: #ffffff; }
+[data-theme="teal"]   { --bg: #e2f6f4; --primary: #0f766e; --primary-hover: #115e59; --on-primary: #ffffff; }
+[data-theme="pink"]   { --bg: #fde9f1; --primary: #be185d; --primary-hover: #9d174d; --on-primary: #ffffff; }
+[data-theme="slate"]  { --bg: #eef1f5; --primary: #334155; --primary-hover: #1e293b; --on-primary: #ffffff; }
+
+/* ---------- Neutral tokens ---------- */
+:root {
+  --text: #0f172a;
+  --muted: #475569;
+  --card: #ffffff;
+  --border: #94a3b8;
+  --hover-fill: #f1f5f9;
+
+  /* "Clear" is always red, whatever the theme */
+  --danger: #c62828;
+  --danger-hover: #b71c1c;
+  --on-danger: #ffffff;
+  --danger-text: #b91c1c;
+
+  --radius: 14px;
+  --shadow: 0 1px 2px rgba(15, 23, 42, .06), 0 8px 24px rgba(15, 23, 42, .08);
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans Thai", "Sarabun", "Helvetica Neue", Arial, sans-serif;
+}
+
+/* ---------- Base ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font);
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+  transition: background-color .25s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+h1, h2, p { margin: 0; }
+
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 3px;
+}
+
+/* ---------- Top bar + hamburger ---------- */
+.topbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: calc(env(safe-area-inset-top, 0px) + 12px)
+           calc(env(safe-area-inset-right, 0px) + 16px)
+           0
+           calc(env(safe-area-inset-left, 0px) + 16px);
+}
+
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  color: var(--text);
+  background: var(--card);
+  border: 1px solid rgba(15, 23, 42, .12);
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .06);
+  cursor: pointer;
+  transition: background-color .15s ease, transform .1s ease;
+}
+.icon-btn:hover { background: var(--hover-fill); }
+.icon-btn:active { transform: scale(.96); }
+
+/* ---------- Layout ---------- */
+.app {
+  width: min(100%, 560px);
+  margin: 0 auto;
+  padding: clamp(8px, 4vh, 40px) 16px calc(env(safe-area-inset-bottom, 0px) + 48px);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.app h1 {
+  text-align: center;
+  font-size: clamp(1.7rem, 6vw, 2.25rem);
+  line-height: 1.2;
+  letter-spacing: -.02em;
+  font-weight: 750;
+}
+
+.lead {
+  margin: 8px 0 24px;
+  text-align: center;
+  color: var(--muted);
+}
+
+/* ---------- Input card ---------- */
+.card {
+  background: var(--card);
+  padding: 16px;
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+}
+
+textarea {
+  display: block;
+  width: 100%;
+  min-height: 180px;
+  padding: 14px 16px;
+  font: inherit;
+  font-size: 1rem;              /* 16px minimum stops iOS zooming on focus */
+  color: var(--text);
+  background: #fff;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  resize: vertical;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+textarea::placeholder { color: #64748b; opacity: 1; }
+textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 22%, transparent);
+}
+
+.error {
+  margin-top: 10px;
+  color: var(--danger-text);
+  font-weight: 600;
+  font-size: .95rem;
+}
+
+/* ---------- Buttons ---------- */
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  padding: 12px 20px;
+  font: inherit;
+  font-weight: 650;
+  line-height: 1.2;
+  text-align: center;
+  border: 2px solid transparent;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background-color .15s ease, color .15s ease, transform .1s ease, box-shadow .15s ease;
+}
+.btn:active { transform: translateY(1px) scale(.99); }
+
+.btn-primary { color: var(--on-primary); background: var(--primary); }
+.btn-primary:hover { background: var(--primary-hover); }
+
+.btn-clear { color: var(--on-danger); background: var(--danger); }
+.btn-clear:hover { background: var(--danger-hover); }
+
+.btn-secondary { color: var(--primary); background: var(--card); border-color: var(--primary); }
+.btn-secondary:hover { background: var(--bg); }
+
+.btn-ghost { color: var(--muted); background: transparent; }
+.btn-ghost:hover { background: var(--hover-fill); }
+
+/* Stack the two main buttons on narrow screens */
+@media (max-width: 480px) {
+  .actions { grid-template-columns: 1fr; }
+}
+
+/* ---------- QR result ---------- */
+.result {
+  margin-top: 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: rise .3s ease both;
+}
+
+.qr-wrap { position: relative; }
+
+.qr-btn {
+  display: block;
+  padding: 16px;
+  background: #fff;
+  border: 0;
+  border-radius: 24px;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.qr-btn:hover { transform: translateY(-2px); box-shadow: 0 2px 4px rgba(15, 23, 42, .08), 0 14px 32px rgba(15, 23, 42, .14); }
+.qr-btn:active { transform: scale(.985); }
+
+.qr-btn img {
+  display: block;
+  width: min(280px, 68vw);
+  height: auto;
+  aspect-ratio: 1 / 1;
+  image-rendering: -webkit-optimize-contrast;
+  user-select: none;
+}
+
+.hint {
+  margin-top: 16px;
+  font-size: .95rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+.status {
+  min-height: 1.5em;
+  margin-top: 4px;
+  font-size: .95rem;
+  font-weight: 600;
+  color: var(--primary);
+  text-align: center;
+}
+
+/* ---------- Desktop pop-over ---------- */
+.popover {
+  position: absolute;
+  top: calc(100% + 12px);
+  left: 50%;
+  z-index: 20;
+  min-width: 200px;
+  padding: 6px;
+  background: var(--card);
+  border: 1px solid rgba(15, 23, 42, .12);
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, .18);
+  transform: translateX(-50%);
+  transform-origin: top center;
+  animation: pop .14s ease both;
+}
+.popover::before {            /* little arrow pointing at the QR code */
+  content: "";
+  position: absolute;
+  top: -7px; left: 50%;
+  width: 12px; height: 12px;
+  background: var(--card);
+  border-top: 1px solid rgba(15, 23, 42, .12);
+  border-left: 1px solid rgba(15, 23, 42, .12);
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.popover-item {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 12px 16px;
+  font: inherit;
+  font-weight: 650;
+  color: var(--text);
+  text-align: center;
+  white-space: nowrap;
+  background: transparent;
+  border: 0;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.popover-item:hover { background: var(--bg); }
+
+/* ---------- Backdrop ---------- */
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(15, 23, 42, .45);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity .25s ease, visibility 0s linear .25s;
+}
+.scrim.show {
+  opacity: 1;
+  visibility: visible;
+  transition-delay: 0s;
+}
+
+/* ---------- Theme drawer (right side) ---------- */
+.drawer {
+  position: fixed;
+  top: 0; right: 0; bottom: 0;
+  z-index: 50;
+  width: min(330px, 88vw);
+  padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(env(safe-area-inset-bottom, 0px) + 16px);
+  overflow-y: auto;
+  background: var(--card);
+  box-shadow: -12px 0 40px rgba(15, 23, 42, .2);
+  transform: translateX(100%);
+  visibility: hidden;
+  transition: transform .28s cubic-bezier(.2, .8, .2, 1), visibility 0s linear .28s;
+}
+.drawer.open {
+  transform: none;
+  visibility: visible;
+  transition-delay: 0s;
+}
+
+.drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.drawer-head h2 { font-size: 1.25rem; font-weight: 700; }
+
+.themes {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+/* Each option carries its own data-theme, so var(--primary)/var(--bg) inside
+   it resolve to that theme's colours — that is what paints the swatch. */
+.theme-option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 56px;
+  padding: 8px 12px;
+  border: 2px solid transparent;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background-color .15s ease, border-color .15s ease;
+}
+.theme-option:hover { background: var(--hover-fill); }
+.theme-option:has(input:checked) { border-color: var(--primary); background: var(--bg); }
+
+.theme-option input {
+  position: absolute;
+  opacity: 0;
+  width: 1px; height: 1px;
+  margin: 0;
+}
+
+.swatch {
+  flex: none;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  border: 1px solid rgba(15, 23, 42, .2);
+  background: linear-gradient(135deg, var(--bg) 0 50%, var(--primary) 50% 100%);
+}
+.theme-option input:checked ~ .swatch {
+  box-shadow: 0 0 0 3px var(--card), 0 0 0 5px var(--primary);
+}
+.theme-option input:focus-visible ~ .swatch {
+  outline: 3px solid var(--text);
+  outline-offset: 5px;
+}
+
+.theme-name { flex: 1; font-weight: 650; }
+.theme-name small {
+  margin-left: 6px;
+  font-weight: 500;
+  font-size: .9rem;
+  color: var(--muted);
+}
+
+.tick {
+  font-weight: 800;
+  color: var(--primary);
+  opacity: 0;
+}
+.theme-option input:checked ~ .tick { opacity: 1; }
+
+/* ---------- Mobile action sheet (bottom) ---------- */
+.sheet {
+  position: fixed;
+  left: 50%;
+  bottom: 0;
+  z-index: 60;
+  display: grid;
+  gap: 10px;
+  width: min(100%, 560px);
+  padding: 10px 16px calc(env(safe-area-inset-bottom, 0px) + 16px);
+  background: var(--card);
+  border-radius: 24px 24px 0 0;
+  box-shadow: 0 -12px 40px rgba(15, 23, 42, .22);
+  transform: translate(-50%, 100%);
+  visibility: hidden;
+  transition: transform .28s cubic-bezier(.2, .8, .2, 1), visibility 0s linear .28s;
+}
+.sheet.open {
+  transform: translate(-50%, 0);
+  visibility: visible;
+  transition-delay: 0s;
+}
+.sheet-grabber {
+  justify-self: center;
+  width: 40px; height: 5px;
+  margin-bottom: 4px;
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+.sheet-title {
+  text-align: center;
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+/* ---------- Animation ---------- */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes pop {
+  from { opacity: 0; transform: translateX(-50%) scale(.94); }
+  to   { opacity: 1; transform: translateX(-50%) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    transition-duration: .01ms !important;
+    transition-delay: 0s !important;
+  }
+}

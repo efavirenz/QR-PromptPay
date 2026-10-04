@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="blue">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>QR Code Generator</title>
+  <meta name="description" content="Free, fast and private QR Code Generator. Works offline and can be installed on your phone.">
+  <meta name="theme-color" content="#eaf2ff">
+
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="QR Generator">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+
+  <!-- Apply the saved theme before first paint to avoid a colour flash -->
+  <script>
+    try {
+      var t = localStorage.getItem('qr-generator-theme');
+      if (t && /^[a-z]+$/.test(t)) document.documentElement.setAttribute('data-theme', t);
+    } catch (e) {}
+  </script>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <header class="topbar" id="topbar">
+    <button id="menuBtn" class="icon-btn" type="button"
+            aria-label="Open theme menu" aria-expanded="false" aria-controls="drawer">
+      <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false">
+        <path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </button>
+  </header>
+
+  <main class="app" id="main">
+    <h1>QR Code Generator</h1>
+    <p class="lead">Turn any text or link into a QR code in one tap.</p>
+
+    <noscript><p class="error">JavaScript is required to generate QR codes.</p></noscript>
+
+    <section class="card" aria-label="QR code input">
+      <label for="input" class="sr-only">Text or URL to encode</label>
+      <textarea id="input" rows="6" placeholder="Enter text or URL here..."
+                autocomplete="off" autocapitalize="off" spellcheck="false"></textarea>
+      <p id="error" class="error" role="alert" hidden></p>
+
+      <div class="actions">
+        <button id="generateBtn" class="btn btn-primary" type="button">Generate QR Code</button>
+        <button id="clearBtn" class="btn btn-clear" type="button">Clear</button>
+      </div>
+    </section>
+
+    <section id="result" class="result" aria-label="Generated QR code" hidden>
+      <div class="qr-wrap">
+        <button id="qrBtn" class="qr-btn" type="button"
+                aria-haspopup="menu" aria-expanded="false"
+                aria-label="QR code. Press to open download options">
+          <img id="qrImg" alt="Generated QR code" width="280" height="280">
+        </button>
+        <div id="popover" class="popover" role="menu" hidden>
+          <button id="popDownload" class="popover-item" type="button" role="menuitem">Download QR Code</button>
+        </div>
+      </div>
+      <p id="qrHint" class="hint"></p>
+      <p id="status" class="status" role="status"></p>
+    </section>
+  </main>
+
+  <!-- Shared backdrop for the theme drawer and the mobile action sheet -->
+  <div id="scrim" class="scrim" aria-hidden="true"></div>
+
+  <aside id="drawer" class="drawer" aria-label="Theme settings" inert>
+    <div class="drawer-head">
+      <h2>Theme</h2>
+      <button id="closeMenu" class="icon-btn" type="button" aria-label="Close theme menu">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
+          <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
+
+    <fieldset class="themes">
+      <legend class="sr-only">Colour theme</legend>
+
+      <label class="theme-option" data-theme="blue">
+        <input type="radio" name="theme" value="blue">
+        <span class="swatch" aria-hidden="true"></span>
+        <span class="theme-name">Blue <small lang="th">น้ำเงิน</small></span>
+        <span class="tick" aria-hidden="true">✓</span>
+      </label>
+      <label class="theme-option" data-theme="green">
+        <input type="radio" name="theme" value="green">
+        <span class="swatch" aria-hidden="true"></span>
+        <span class="theme-name">Green <small lang="th">เขียว</small></span>
+        <span class="tick" aria-hidden="true">✓</span>
+      </label>
+      <label class="theme-option" data-theme="red">
+        <input type="radio" name="theme" value="red">
+        <span class="swatch" aria-hidden="true"></span>
+        <span class="theme-name">Red <small lang="th">แดง</small></span>
+        <span class="tick" aria-hidden="true">✓</span>
+      </label>
+      <label class="theme-option" data-theme="purple">
+        <input type="radio" name="theme" value="purple">
+        <span class="swatch" aria-hidden="true"></span>
+        <span class="theme-name">Purple <small lang="th">ม่วง</small></span>
+        <span class="tick" aria-hidden="true">✓</span>
+      </label>
+      <label class="theme-option" data-theme="orange">
+        <input type="radio" name="theme" value="orange">
+        <span class="swatch" aria-hidden="true"></span>
+        <span class="theme-name">Orange <small lang="th">ส้ม</small></span>
+        <span class="tick" aria-hidden="true">✓</span>
+      </label>
+      <label class="theme-option" data-theme="teal">
+        <input type="radio" name="theme" value="teal">
+        <span class="swatch" aria-hidden="true"></span>
+        <span class="theme-name">Teal <small lang="th">เขียวมรกต</small></span>
+        <span class="tick" aria-hidden="true">✓</span>
+      </label>
+      <label class="theme-option" data-theme="pink">
+        <input type="radio" name="theme" value="pink">
+        <span class="swatch" aria-hidden="true"></span>
+        <span class="theme-name">Pink <small lang="th">ชมพู</small></span>
+        <span class="tick" aria-hidden="true">✓</span>
+      </label>
+      <label class="theme-option" data-theme="slate">
+        <input type="radio" name="theme" value="slate">
+        <span class="swatch" aria-hidden="true"></span>
+        <span class="theme-name">Slate <small lang="th">เทาน้ำเงิน</small></span>
+        <span class="tick" aria-hidden="true">✓</span>
+      </label>
+    </fieldset>
+  </aside>
+
+  <!-- Mobile action sheet (shown when the QR code is tapped on a touch device) -->
+  <div id="sheet" class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" inert>
+    <div class="sheet-grabber" aria-hidden="true"></div>
+    <h2 id="sheetTitle" class="sheet-title">QR code</h2>
+    <button id="sheetDownload" class="btn btn-primary" type="button">Download</button>
+    <button id="sheetShare" class="btn btn-secondary" type="button" hidden>Share</button>
+    <button id="sheetCancel" class="btn btn-ghost" type="button">Cancel</button>
+  </div>
+
+  <script src="js/vendor/qrcode.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
