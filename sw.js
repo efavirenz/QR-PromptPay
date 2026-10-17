@@ -1,17 +1,21 @@
 /* ==========================================================================
-   QR Code Generator PWA — Service Worker
+   QR & PromptPay PWA — Service Worker
    - Pre-caches the app shell so the app opens and works fully offline.
    - Uses RELATIVE paths only, so it works from a GitHub Pages sub-path
      such as https://<user>.github.io/<repo>/.
-   - Bump CACHE_VERSION whenever you change any cached file.
+   - The cache name comes from js/version.js. To release a new version, bump
+     APP_VERSION there: browsers see that this worker changed, install the new
+     files and the "vX.Y" button in the app can switch to them.
    ========================================================================== */
-const CACHE_VERSION = 'v1';
-const CACHE_NAME = 'qr-generator-' + CACHE_VERSION;
+importScripts('./js/version.js');
+
+const CACHE_NAME = 'qr-generator-v' + self.APP_VERSION;
 
 const APP_SHELL = [
   './',
   './index.html',
   './css/style.css',
+  './js/version.js',
   './js/app.js',
   './js/vendor/qrcode.js',
   './manifest.json',
@@ -24,7 +28,9 @@ const APP_SHELL = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(APP_SHELL))
+      // cache: 'reload' skips the browser's HTTP cache (GitHub Pages sends max-age=600),
+      // so a new version never gets assembled out of stale copies of its files.
+      .then((cache) => cache.addAll(APP_SHELL.map((url) => new Request(url, { cache: 'reload' }))))
       .then(() => self.skipWaiting())
   );
 });
@@ -41,40 +47,29 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// The page can ask a waiting worker to take over right away.
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
+});
+
 self.addEventListener('fetch', (event) => {
   const request = event.request;
   if (request.method !== 'GET') return;
 
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;   // never touch third-party requests
+  if (url.searchParams.has('_vc')) return;           // the app's "check for updates" probe must hit the network
 
-  // Page navigations: try the network first (fresh HTML), fall back to the cached shell offline.
-  if (request.mode === 'navigate') {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put('./index.html', copy));
-          return response;
-        })
-        .catch(() => caches.match('./index.html').then((cached) => cached || caches.match('./')))
-    );
-    return;
-  }
-
-  // Everything else: stale-while-revalidate (instant from cache, refreshed in the background).
+  // Everything in the shell is served from the versioned cache, so index.html, CSS and JS
+  // are always from the same release. New releases arrive through the Service Worker update.
   event.respondWith(
     caches.open(CACHE_NAME).then((cache) =>
-      cache.match(request).then((cached) => {
-        const network = fetch(request)
-          .then((response) => {
-            if (response && response.status === 200 && response.type === 'basic') {
-              cache.put(request, response.clone());
-            }
-            return response;
-          })
-          .catch(() => cached);
-        return cached || network;
+      cache.match(request, { ignoreSearch: request.mode === 'navigate' }).then((cached) => {
+        if (cached) return cached;
+        return fetch(request).catch(() => {
+          if (request.mode === 'navigate') return cache.match('./index.html');
+          return Response.error();
+        });
       })
     )
   );

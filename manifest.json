@@ -1,7 +1,7 @@
 {
-  "name": "QR Code Generator",
-  "short_name": "QR Generator",
-  "description": "Turn any text or link into a QR code. Works offline.",
+  "name": "QR & PromptPay",
+  "short_name": "QR & PromptPay",
+  "description": "Turn any text or link into a QR code, or create a PromptPay QR code. Works offline.",
   "id": "./",
   "start_url": "./",
   "scope": "./",
@@ -10,7 +10,7 @@
   "background_color": "#eaf2ff",
   "theme_color": "#1d4ed8",
   "lang": "en",
-  "categories": ["utilities", "productivity"],
+  "categories": ["utilities", "productivity", "finance"],
   "icons": [
     {
       "src": "icons/icon-192.png",

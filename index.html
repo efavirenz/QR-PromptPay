@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="blue">
+<html lang="en" data-theme="blue" data-mode="text">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>QR Code Generator</title>
-  <meta name="description" content="Free, fast and private QR Code Generator. Works offline and can be installed on your phone.">
+  <title>QR &amp; PromptPay</title>
+  <meta name="description" content="Free, fast and private QR code generator with PromptPay support. Works offline and can be installed on your phone.">
   <meta name="theme-color" content="#eaf2ff">
 
   <link rel="manifest" href="manifest.json">
@@ -12,14 +12,23 @@
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="QR Generator">
+  <meta name="apple-mobile-web-app-title" content="QR &amp; PromptPay">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
 
-  <!-- Apply the saved theme before first paint to avoid a colour flash -->
+  <!-- Apply the saved theme, language and mode before first paint (no colour / layout flash).
+       app.js owns the real logic; this only mirrors it for the first frame. -->
   <script>
     try {
-      var t = localStorage.getItem('qr-generator-theme');
-      if (t && /^[a-z]+$/.test(t)) document.documentElement.setAttribute('data-theme', t);
+      var de = document.documentElement, ls = window.localStorage;
+      var t = ls.getItem('qr-generator-theme');
+      if (t && /^[a-z]+$/.test(t)) de.setAttribute('data-theme', t);
+      var l = ls.getItem('qr-generator-lang');
+      if (l !== 'en' && l !== 'th') {
+        var nav = (navigator.languages && navigator.languages[0]) || navigator.language || '';
+        l = /^th(-|_|$)/i.test(nav) ? 'th' : 'en';
+      }
+      de.setAttribute('lang', l);
+      if (ls.getItem('qr-generator-mode') === 'promptpay') de.setAttribute('data-mode', 'promptpay');
     } catch (e) {}
   </script>
   <link rel="stylesheet" href="css/style.css">
@@ -28,124 +37,207 @@
 
   <header class="topbar" id="topbar">
     <button id="menuBtn" class="icon-btn" type="button"
-            aria-label="Open theme menu" aria-expanded="false" aria-controls="drawer">
+            data-i18n-attr="aria-label:menu.open"
+            aria-label="Open menu" aria-expanded="false" aria-controls="drawer">
       <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false">
         <path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
       </svg>
     </button>
+
+    <button id="versionBtn" class="ver-btn" type="button" aria-label="App version. Tap to check for updates.">v2.0</button>
   </header>
 
   <main class="app" id="main">
-    <h1>QR Code Generator</h1>
-    <p class="lead">Turn any text or link into a QR code in one tap.</p>
+    <h1>QR &amp; PromptPay</h1>
+    <p class="lead" data-only="text" data-i18n="lead.text">Turn any text or link into a QR code in one tap.</p>
+    <p class="lead" data-only="promptpay" data-i18n="lead.promptpay">Create a PromptPay QR code to receive money. Works with phone numbers, national IDs and e-Wallet IDs.</p>
 
-    <noscript><p class="error">JavaScript is required to generate QR codes.</p></noscript>
+    <noscript><p class="error">JavaScript is required to generate QR codes. / ต้องเปิดใช้งาน JavaScript เพื่อสร้าง QR Code</p></noscript>
 
-    <section class="card" aria-label="QR code input">
-      <label for="input" class="sr-only">Text or URL to encode</label>
-      <textarea id="input" rows="6" placeholder="Enter text or URL here..."
-                autocomplete="off" autocapitalize="off" spellcheck="false"></textarea>
+    <section class="card" aria-label="QR code input" data-i18n-attr="aria-label:card.label">
+
+      <!-- Text mode -->
+      <div data-only="text">
+        <label for="input" class="sr-only" data-i18n="text.label">Text or URL to encode</label>
+        <textarea id="input" rows="6" placeholder="Enter text or URL here..."
+                  data-i18n-attr="placeholder:text.placeholder"
+                  autocomplete="off" autocapitalize="off" spellcheck="false"></textarea>
+      </div>
+
+      <!-- PromptPay mode -->
+      <div data-only="promptpay">
+        <div class="field">
+          <label for="ppTarget" class="field-label" data-i18n="pp.targetLabel">Phone number, national ID or e-Wallet ID</label>
+          <input id="ppTarget" type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="next"
+                 autocomplete="off" autocapitalize="off" spellcheck="false"
+                 placeholder="10, 13 or 15 digits" data-i18n-attr="placeholder:pp.targetPlaceholder"
+                 aria-describedby="ppTargetInfo ppTargetWarn">
+          <p id="ppTargetInfo" class="field-info"></p>
+          <p id="ppTargetWarn" class="field-warn" hidden></p>
+        </div>
+
+        <div class="field">
+          <label for="ppAmount" class="field-label" data-i18n="pp.amountLabel">Amount (THB), optional</label>
+          <input id="ppAmount" type="text" inputmode="decimal" enterkeyhint="done"
+                 autocomplete="off" autocapitalize="off" spellcheck="false"
+                 placeholder="0.00" aria-describedby="ppAmountInfo">
+          <p id="ppAmountInfo" class="field-info" data-i18n="pp.amountHelp">Leave empty or enter 0 for no fixed amount. Up to 2 decimals, max 9,999,999.99.</p>
+        </div>
+      </div>
+
       <p id="error" class="error" role="alert" hidden></p>
 
       <div class="actions">
-        <button id="generateBtn" class="btn btn-primary" type="button">Generate QR Code</button>
-        <button id="clearBtn" class="btn btn-clear" type="button">Clear</button>
+        <button id="generateBtn" class="btn btn-primary" type="button" data-i18n="btn.generate">Generate QR Code</button>
+        <button id="clearBtn" class="btn btn-clear" type="button" data-i18n="btn.clear">Clear</button>
       </div>
     </section>
 
-    <section id="result" class="result" aria-label="Generated QR code" hidden>
+    <section id="result" class="result" aria-label="Generated QR code" data-i18n-attr="aria-label:result.label" hidden>
       <div class="qr-wrap">
         <button id="qrBtn" class="qr-btn" type="button"
                 aria-haspopup="menu" aria-expanded="false"
-                aria-label="QR code. Press to open download options">
-          <img id="qrImg" alt="Generated QR code" width="280" height="280">
+                aria-label="QR code. Press to open download options"
+                data-i18n-attr="aria-label:qr.btnLabel">
+          <img id="qrImg" alt="Generated QR code" data-i18n-attr="alt:qr.alt" width="280" height="280">
         </button>
         <div id="popover" class="popover" role="menu" hidden>
-          <button id="popDownload" class="popover-item" type="button" role="menuitem">Download QR Code</button>
+          <button id="popDownload" class="popover-item" type="button" role="menuitem" data-i18n="pop.download">Download QR Code</button>
         </div>
       </div>
+
+      <!-- PromptPay summary: account type, masked destination, amount -->
+      <dl id="ppInfo" class="pp-info" data-only="promptpay">
+        <div class="pp-row"><dt data-i18n="pp.info.type">Account type</dt><dd id="ppInfoType"></dd></div>
+        <div class="pp-row"><dt data-i18n="pp.info.to">Pay to</dt><dd id="ppInfoTo"></dd></div>
+        <div class="pp-row"><dt data-i18n="pp.info.amount">Amount</dt><dd id="ppInfoAmount"></dd></div>
+      </dl>
+      <p id="ppWarn" class="warn" hidden></p>
+
       <p id="qrHint" class="hint"></p>
       <p id="status" class="status" role="status"></p>
     </section>
   </main>
 
-  <!-- Shared backdrop for the theme drawer and the mobile action sheet -->
+  <!-- Short messages (version check results). Lives outside <main> so it stays readable while a layer is open. -->
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <!-- Shared backdrop for the menu drawer and the mobile action sheet -->
   <div id="scrim" class="scrim" aria-hidden="true"></div>
 
-  <aside id="drawer" class="drawer" aria-label="Theme settings" inert>
+  <aside id="drawer" class="drawer" aria-labelledby="drawerTitle" inert>
     <div class="drawer-head">
-      <h2>Theme</h2>
-      <button id="closeMenu" class="icon-btn" type="button" aria-label="Close theme menu">
+      <h2 id="drawerTitle" data-i18n="menu.title">Settings</h2>
+      <button id="closeMenu" class="icon-btn" type="button" aria-label="Close menu" data-i18n-attr="aria-label:menu.close">
         <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
           <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
         </svg>
       </button>
     </div>
 
-    <fieldset class="themes">
-      <legend class="sr-only">Colour theme</legend>
+    <!-- 1. Language (menu stays open so the change is visible straight away) -->
+    <fieldset class="menu-section">
+      <legend data-i18n="menu.language">Language</legend>
+      <div class="seg">
+        <label class="seg-opt"><input type="radio" name="lang" value="en"><span>EN</span></label>
+        <label class="seg-opt"><input type="radio" name="lang" value="th"><span>TH</span></label>
+      </div>
+    </fieldset>
 
-      <label class="theme-option" data-theme="blue">
-        <input type="radio" name="theme" value="blue">
-        <span class="swatch" aria-hidden="true"></span>
-        <span class="theme-name">Blue <small lang="th">น้ำเงิน</small></span>
-        <span class="tick" aria-hidden="true">✓</span>
-      </label>
-      <label class="theme-option" data-theme="green">
-        <input type="radio" name="theme" value="green">
-        <span class="swatch" aria-hidden="true"></span>
-        <span class="theme-name">Green <small lang="th">เขียว</small></span>
-        <span class="tick" aria-hidden="true">✓</span>
-      </label>
-      <label class="theme-option" data-theme="red">
-        <input type="radio" name="theme" value="red">
-        <span class="swatch" aria-hidden="true"></span>
-        <span class="theme-name">Red <small lang="th">แดง</small></span>
-        <span class="tick" aria-hidden="true">✓</span>
-      </label>
-      <label class="theme-option" data-theme="purple">
-        <input type="radio" name="theme" value="purple">
-        <span class="swatch" aria-hidden="true"></span>
-        <span class="theme-name">Purple <small lang="th">ม่วง</small></span>
-        <span class="tick" aria-hidden="true">✓</span>
-      </label>
-      <label class="theme-option" data-theme="orange">
-        <input type="radio" name="theme" value="orange">
-        <span class="swatch" aria-hidden="true"></span>
-        <span class="theme-name">Orange <small lang="th">ส้ม</small></span>
-        <span class="tick" aria-hidden="true">✓</span>
-      </label>
-      <label class="theme-option" data-theme="teal">
-        <input type="radio" name="theme" value="teal">
-        <span class="swatch" aria-hidden="true"></span>
-        <span class="theme-name">Teal <small lang="th">เขียวมรกต</small></span>
-        <span class="tick" aria-hidden="true">✓</span>
-      </label>
-      <label class="theme-option" data-theme="pink">
-        <input type="radio" name="theme" value="pink">
-        <span class="swatch" aria-hidden="true"></span>
-        <span class="theme-name">Pink <small lang="th">ชมพู</small></span>
-        <span class="tick" aria-hidden="true">✓</span>
-      </label>
-      <label class="theme-option" data-theme="slate">
-        <input type="radio" name="theme" value="slate">
-        <span class="swatch" aria-hidden="true"></span>
-        <span class="theme-name">Slate <small lang="th">เทาน้ำเงิน</small></span>
-        <span class="tick" aria-hidden="true">✓</span>
-      </label>
+    <!-- 2. Mode (menu closes after choosing) -->
+    <fieldset class="menu-section">
+      <legend data-i18n="menu.mode">Mode</legend>
+      <div class="seg">
+        <label class="seg-opt"><input type="radio" name="mode" value="text"><span data-i18n="mode.text">Text</span></label>
+        <label class="seg-opt"><input type="radio" name="mode" value="promptpay"><span>PromptPay</span></label>
+      </div>
+    </fieldset>
+
+    <!-- 3. Themes (menu closes after choosing) -->
+    <fieldset class="menu-section">
+      <legend data-i18n="menu.theme">Theme</legend>
+
+      <p class="theme-group-label" data-i18n="menu.light">Light</p>
+      <div class="themes">
+        <label class="theme-option">
+          <input type="radio" name="theme" value="blue">
+          <span class="swatch" data-sw="blue" aria-hidden="true"></span>
+          <span class="theme-name" data-i18n="theme.blue">Blue</span>
+          <span class="tick" aria-hidden="true">✓</span>
+        </label>
+        <label class="theme-option">
+          <input type="radio" name="theme" value="green">
+          <span class="swatch" data-sw="green" aria-hidden="true"></span>
+          <span class="theme-name" data-i18n="theme.green">Green</span>
+          <span class="tick" aria-hidden="true">✓</span>
+        </label>
+        <label class="theme-option">
+          <input type="radio" name="theme" value="purple">
+          <span class="swatch" data-sw="purple" aria-hidden="true"></span>
+          <span class="theme-name" data-i18n="theme.purple">Purple</span>
+          <span class="tick" aria-hidden="true">✓</span>
+        </label>
+        <label class="theme-option">
+          <input type="radio" name="theme" value="orange">
+          <span class="swatch" data-sw="orange" aria-hidden="true"></span>
+          <span class="theme-name" data-i18n="theme.orange">Orange</span>
+          <span class="tick" aria-hidden="true">✓</span>
+        </label>
+        <label class="theme-option">
+          <input type="radio" name="theme" value="pink">
+          <span class="swatch" data-sw="pink" aria-hidden="true"></span>
+          <span class="theme-name" data-i18n="theme.pink">Pink</span>
+          <span class="tick" aria-hidden="true">✓</span>
+        </label>
+      </div>
+
+      <p class="theme-group-label" data-i18n="menu.dark">Dark</p>
+      <div class="themes">
+        <label class="theme-option">
+          <input type="radio" name="theme" value="midnight">
+          <span class="swatch" data-sw="midnight" aria-hidden="true"></span>
+          <span class="theme-name" data-i18n="theme.midnight">Midnight Blue</span>
+          <span class="tick" aria-hidden="true">✓</span>
+        </label>
+        <label class="theme-option">
+          <input type="radio" name="theme" value="forest">
+          <span class="swatch" data-sw="forest" aria-hidden="true"></span>
+          <span class="theme-name" data-i18n="theme.forest">Forest Green</span>
+          <span class="tick" aria-hidden="true">✓</span>
+        </label>
+        <label class="theme-option">
+          <input type="radio" name="theme" value="plum">
+          <span class="swatch" data-sw="plum" aria-hidden="true"></span>
+          <span class="theme-name" data-i18n="theme.plum">Plum</span>
+          <span class="tick" aria-hidden="true">✓</span>
+        </label>
+        <label class="theme-option">
+          <input type="radio" name="theme" value="ember">
+          <span class="swatch" data-sw="ember" aria-hidden="true"></span>
+          <span class="theme-name" data-i18n="theme.ember">Ember</span>
+          <span class="tick" aria-hidden="true">✓</span>
+        </label>
+        <label class="theme-option">
+          <input type="radio" name="theme" value="charcoal">
+          <span class="swatch" data-sw="charcoal" aria-hidden="true"></span>
+          <span class="theme-name" data-i18n="theme.charcoal">Charcoal</span>
+          <span class="tick" aria-hidden="true">✓</span>
+        </label>
+      </div>
     </fieldset>
   </aside>
 
   <!-- Mobile action sheet (shown when the QR code is tapped on a touch device) -->
   <div id="sheet" class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" inert>
     <div class="sheet-grabber" aria-hidden="true"></div>
-    <h2 id="sheetTitle" class="sheet-title">QR code</h2>
-    <button id="sheetDownload" class="btn btn-primary" type="button">Download</button>
-    <button id="sheetShare" class="btn btn-secondary" type="button" hidden>Share</button>
-    <button id="sheetCancel" class="btn btn-ghost" type="button">Cancel</button>
+    <h2 id="sheetTitle" class="sheet-title" data-i18n="sheet.title">QR code</h2>
+    <button id="sheetDownload" class="btn btn-primary" type="button" data-i18n="sheet.download">Download</button>
+    <button id="sheetShare" class="btn btn-secondary" type="button" data-i18n="sheet.share" hidden>Share</button>
+    <button id="sheetCancel" class="btn btn-ghost" type="button" data-i18n="sheet.cancel">Cancel</button>
   </div>
 
   <script src="js/vendor/qrcode.js"></script>
+  <script src="js/version.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
