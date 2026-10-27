@@ -28,10 +28,11 @@ const APP_SHELL = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      // cache: 'reload' skips the browser's HTTP cache (GitHub Pages sends max-age=600),
-      // so a new version never gets assembled out of stale copies of its files.
-      .then((cache) => cache.addAll(APP_SHELL.map((url) => new Request(url, { cache: 'reload' }))))
-      .then(() => self.skipWaiting())
+      // Cache-bust edge CDN with ?v= and cache: 'reload' so a new version never gets assembled out of stale edge copies
+      .then((cache) => cache.addAll(APP_SHELL.map((url) => {
+        const bustUrl = url + (url.indexOf('?') === -1 ? '?v=' : '&v=') + self.APP_VERSION;
+        return new Request(bustUrl, { cache: 'reload' });
+      })))
   );
 });
 
@@ -60,17 +61,26 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;   // never touch third-party requests
   if (url.searchParams.has('_vc')) return;           // the app's "check for updates" probe must hit the network
 
-  // Everything in the shell is served from the versioned cache, so index.html, CSS and JS
-  // are always from the same release. New releases arrive through the Service Worker update.
+  // Navigations use Network-First to guarantee latest HTML when online, with offline fallback.
+  // Shell assets use Cache-First with ignoreSearch so ?v= query params match.
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request)
+        .then((res) => {
+          if (res.ok) {
+            const clone = res.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          }
+          return res;
+        })
+        .catch(() => caches.open(CACHE_NAME).then((cache) => cache.match('./index.html', { ignoreSearch: true })))
+    );
+    return;
+  }
+
   event.respondWith(
     caches.open(CACHE_NAME).then((cache) =>
-      cache.match(request, { ignoreSearch: request.mode === 'navigate' }).then((cached) => {
-        if (cached) return cached;
-        return fetch(request).catch(() => {
-          if (request.mode === 'navigate') return cache.match('./index.html');
-          return Response.error();
-        });
-      })
+      cache.match(request, { ignoreSearch: true }).then((cached) => cached || fetch(request))
     )
   );
 });

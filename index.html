@@ -2,6 +2,7 @@
 <html lang="en" data-theme="blue" data-mode="text">
 <head>
   <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-IRub8Ix5QDK/WUX6w7fiRB1N+hr6MzdF8TjNmA6Xw9I='; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; manifest-src 'self';">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>QR &amp; PromptPay</title>
   <meta name="description" content="Free, fast and private QR code generator with PromptPay support. Works offline and can be installed on your phone.">
@@ -13,7 +14,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="QR &amp; PromptPay">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta id="metaAppleStatus" name="apple-mobile-web-app-status-bar-style" content="default">
 
   <!-- Apply the saved theme, language and mode before first paint (no colour / layout flash).
        app.js owns the real logic; this only mirrors it for the first frame. -->
@@ -21,7 +22,7 @@
     try {
       var de = document.documentElement, ls = window.localStorage;
       var t = ls.getItem('qr-generator-theme');
-      if (t && /^[a-z]+$/.test(t)) de.setAttribute('data-theme', t);
+      if (t && /^(blue|green|purple|orange|pink|midnight|forest|plum|ember|charcoal)$/.test(t)) de.setAttribute('data-theme', t);
       var l = ls.getItem('qr-generator-lang');
       if (l !== 'en' && l !== 'th') {
         var nav = (navigator.languages && navigator.languages[0]) || navigator.language || '';
@@ -44,7 +45,7 @@
       </svg>
     </button>
 
-    <button id="versionBtn" class="ver-btn" type="button" aria-label="App version. Tap to check for updates.">v2.0</button>
+    <button id="versionBtn" class="ver-btn" type="button" aria-label="App version. Tap to check for updates.">v2.1</button>
   </header>
 
   <main class="app" id="main">
@@ -62,6 +63,12 @@
         <textarea id="input" rows="6" placeholder="Enter text or URL here..."
                   data-i18n-attr="placeholder:text.placeholder"
                   autocomplete="off" autocapitalize="off" spellcheck="false"></textarea>
+        <div class="field-check">
+          <label class="check-opt">
+            <input type="checkbox" id="textRemember">
+            <span data-i18n="text.remember">Remember text on this device</span>
+          </label>
+        </div>
       </div>
 
       <!-- PromptPay mode -->
@@ -73,7 +80,7 @@
                  placeholder="10, 13 or 15 digits" data-i18n-attr="placeholder:pp.targetPlaceholder"
                  aria-describedby="ppTargetInfo ppTargetWarn">
           <p id="ppTargetInfo" class="field-info"></p>
-          <p id="ppTargetWarn" class="field-warn" hidden></p>
+          <p id="ppTargetWarn" class="field-warn" role="status" aria-live="polite" hidden></p>
         </div>
 
         <div class="field">
@@ -125,7 +132,7 @@
   <!-- Shared backdrop for the menu drawer and the mobile action sheet -->
   <div id="scrim" class="scrim" aria-hidden="true"></div>
 
-  <aside id="drawer" class="drawer" aria-labelledby="drawerTitle" inert>
+  <aside id="drawer" class="drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle" inert>
     <div class="drawer-head">
       <h2 id="drawerTitle" data-i18n="menu.title">Settings</h2>
       <button id="closeMenu" class="icon-btn" type="button" aria-label="Close menu" data-i18n-attr="aria-label:menu.close">

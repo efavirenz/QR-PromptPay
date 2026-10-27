@@ -162,7 +162,10 @@ legend { padding: 0; }
 .app {
   width: min(100%, 560px);
   margin: 0 auto;
-  padding: clamp(8px, 4vh, 40px) 16px calc(env(safe-area-inset-bottom, 0px) + 48px);
+  padding: clamp(8px, 4vh, 40px)
+           calc(env(safe-area-inset-right, 0px) + 16px)
+           calc(env(safe-area-inset-bottom, 0px) + 48px)
+           calc(env(safe-area-inset-left, 0px) + 16px);
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -219,6 +222,25 @@ input[type="text"]:focus {
   outline: none;
   border-color: var(--primary);
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 22%, transparent);
+}
+
+.field-check {
+  margin-top: 10px;
+}
+.check-opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: .92rem;
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+}
+.check-opt input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary);
+  cursor: pointer;
 }
 
 /* PromptPay fields */
@@ -603,7 +625,10 @@ input[type="text"]:focus {
   display: grid;
   gap: 10px;
   width: min(100%, 560px);
-  padding: 10px 16px calc(env(safe-area-inset-bottom, 0px) + 16px);
+  padding: 10px
+           calc(env(safe-area-inset-right, 0px) + 16px)
+           calc(env(safe-area-inset-bottom, 0px) + 16px)
+           calc(env(safe-area-inset-left, 0px) + 16px);
   color: var(--text);
   background: var(--card);
   border-radius: 24px 24px 0 0;

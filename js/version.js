@@ -5,4 +5,4 @@
    importScripts (it names the cache). Because the Service Worker imports this
    file, changing it makes browsers detect a new version of the app.
    ========================================================================== */
-self.APP_VERSION = '2.0';
+self.APP_VERSION = '2.1';

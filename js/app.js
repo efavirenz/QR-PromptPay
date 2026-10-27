@@ -21,6 +21,7 @@
     lang: 'qr-generator-lang',
     mode: 'qr-generator-mode',
     text: 'qr-generator-text',
+    textOptIn: 'qr-generator-text-optin',
     ppTarget: 'qr-generator-pp-target',
     ppAmount: 'qr-generator-pp-amount',
     updated: 'qr-generator-updated'       // sessionStorage: set just before an update reload
@@ -35,7 +36,7 @@
   var root = document.documentElement;
   var el = {
     topbar: $('topbar'), main: $('main'),
-    input: $('input'), error: $('error'),
+    input: $('input'), textRemember: $('textRemember'), error: $('error'),
     ppTarget: $('ppTarget'), ppTargetInfo: $('ppTargetInfo'), ppTargetWarn: $('ppTargetWarn'),
     ppAmount: $('ppAmount'),
     generateBtn: $('generateBtn'), clearBtn: $('clearBtn'),
@@ -46,7 +47,8 @@
     menuBtn: $('menuBtn'), closeMenu: $('closeMenu'), versionBtn: $('versionBtn'),
     drawer: $('drawer'), scrim: $('scrim'),
     sheet: $('sheet'), sheetTitle: $('sheetTitle'), sheetDownload: $('sheetDownload'),
-    sheetShare: $('sheetShare'), sheetCancel: $('sheetCancel')
+    sheetShare: $('sheetShare'), sheetCancel: $('sheetCancel'),
+    metaAppleStatus: $('metaAppleStatus')
   };
   var radios = function (name) {
     return Array.prototype.slice.call(document.querySelectorAll('input[name="' + name + '"]'));
@@ -74,6 +76,8 @@
      ====================================================================== */
   var I18N = {
     en: {
+      'app.title': 'QR & PromptPay',
+      'app.desc': 'Free, fast and private QR code generator with PromptPay support. Works offline and can be installed on your phone.',
       'menu.open': 'Open menu',
       'menu.close': 'Close menu',
       'menu.title': 'Settings',
@@ -93,6 +97,7 @@
       'card.label': 'QR code input',
       'text.label': 'Text or URL to encode',
       'text.placeholder': 'Enter text or URL here...',
+      'text.remember': 'Remember text on this device',
 
       'pp.targetLabel': 'Phone number, national ID or e-Wallet ID',
       'pp.targetPlaceholder': '10, 13 or 15 digits',
@@ -112,6 +117,7 @@
       'btn.clear': 'Clear',
       'err.textEmpty': 'Please enter some text or a URL first.',
       'err.textLong': 'That text is too long to fit in a QR code. Please shorten it.',
+      'err.generic': 'Could not generate QR code.',
       'err.ppLength': 'Enter exactly 10 digits (phone), 13 digits (national ID) or 15 digits (e-Wallet ID).',
       'err.ppPhone0': 'A 10-digit phone number must start with 0.',
       'err.amountInvalid': 'Enter a valid amount, for example 250 or 250.50.',
@@ -149,6 +155,8 @@
     },
 
     th: {
+      'app.title': 'คิวอาร์และพร้อมเพย์',
+      'app.desc': 'ตัวสร้าง QR Code ฟรี เร็ว และเป็นส่วนตัว รองรับ PromptPay ใช้งานออฟไลน์และติดตั้งบนมือถือได้',
       'menu.open': 'เปิดเมนู',
       'menu.close': 'ปิดเมนู',
       'menu.title': 'ตั้งค่า',
@@ -168,6 +176,7 @@
       'card.label': 'ช่องกรอกข้อมูลสำหรับ QR Code',
       'text.label': 'ข้อความหรือ URL ที่จะแปลงเป็น QR Code',
       'text.placeholder': 'พิมพ์ข้อความหรือ URL ที่นี่...',
+      'text.remember': 'จำข้อความบนอุปกรณ์นี้',
 
       'pp.targetLabel': 'เบอร์โทรศัพท์ เลขบัตรประชาชน หรือ e-Wallet ID',
       'pp.targetPlaceholder': 'ตัวเลข 10, 13 หรือ 15 หลัก',
@@ -187,6 +196,7 @@
       'btn.clear': 'ล้าง',
       'err.textEmpty': 'กรุณาใส่ข้อความหรือ URL ก่อน',
       'err.textLong': 'ข้อความยาวเกินกว่าจะใส่ใน QR Code ได้ กรุณาย่อให้สั้นลง',
+      'err.generic': 'ไม่สามารถสร้าง QR Code ได้',
       'err.ppLength': 'กรอกตัวเลขให้ครบ 10 หลัก (เบอร์โทร), 13 หลัก (บัตรประชาชน) หรือ 15 หลัก (e-Wallet ID) พอดี',
       'err.ppPhone0': 'เบอร์โทร 10 หลักต้องขึ้นต้นด้วย 0',
       'err.amountInvalid': 'จำนวนเงินไม่ถูกต้อง เช่น 250 หรือ 250.50',
@@ -240,10 +250,9 @@
   /* Re-translate everything that is in the HTML (data-i18n / data-i18n-attr) */
   function applyI18n() {
     root.setAttribute('lang', lang);
+    document.title = t('app.title');
     if (metaDesc) {
-      metaDesc.setAttribute('content', lang === 'th'
-        ? 'ตัวสร้าง QR Code ฟรี เร็ว และเป็นส่วนตัว รองรับ PromptPay ใช้งานออฟไลน์และติดตั้งบนมือถือได้'
-        : 'Free, fast and private QR code generator with PromptPay support. Works offline and can be installed on your phone.');
+      metaDesc.setAttribute('content', t('app.desc'));
     }
     Array.prototype.forEach.call(document.querySelectorAll('[data-i18n]'), function (node) {
       node.textContent = t(node.getAttribute('data-i18n'));
@@ -277,7 +286,13 @@
      Storage (localStorage can throw in private mode, so every call is guarded)
      ====================================================================== */
   function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
-  function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* private mode / full */ } }
+  function lsSet(k, v) {
+    try {
+      localStorage.setItem(k, v);
+    } catch (e) {
+      if (window.console && console.warn) console.warn('[Storage] setItem failed:', k, e);
+    }
+  }
   function lsDel(k) { try { localStorage.removeItem(k); } catch (e) { /* ignore */ } }
 
   /* The target is remembered only when it cannot be a national ID (or a piece of one):
@@ -288,7 +303,9 @@
   }
 
   function persistText() {
-    if (el.input.value) lsSet(KEY.text, el.input.value); else lsDel(KEY.text);
+    var optIn = el.textRemember && el.textRemember.checked;
+    if (optIn) lsSet(KEY.textOptIn, '1'); else lsDel(KEY.textOptIn);
+    if (optIn && el.input.value) lsSet(KEY.text, el.input.value); else lsDel(KEY.text);
   }
   function persistTarget() {
     var d = el.ppTarget.value;
@@ -301,7 +318,14 @@
 
   /* On start-up only the input boxes get their values back — no QR code is generated */
   function restoreInputs() {
-    el.input.value = lsGet(KEY.text) || '';
+    var optIn = lsGet(KEY.textOptIn) === '1';
+    if (el.textRemember) el.textRemember.checked = optIn;
+    if (optIn) {
+      el.input.value = lsGet(KEY.text) || '';
+    } else {
+      el.input.value = '';
+      lsDel(KEY.text);
+    }
 
     var target = filterDigits(lsGet(KEY.ppTarget) || '');
     if (isRememberableTarget(target)) el.ppTarget.value = target; else lsDel(KEY.ppTarget);
@@ -323,6 +347,10 @@
     // keep the browser / status-bar colour in step with the page background
     var bg = getComputedStyle(root).getPropertyValue('--bg').trim();
     if (bg && metaTheme) metaTheme.setAttribute('content', bg);
+
+    var isDark = ['midnight', 'forest', 'plum', 'ember', 'charcoal'].indexOf(name) !== -1;
+    var metaApple = el.metaAppleStatus || document.getElementById('metaAppleStatus');
+    if (metaApple) metaApple.setAttribute('content', isDark ? 'black-translucent' : 'default');
 
     if (persist) lsSet(KEY.theme, name);
   }
@@ -347,16 +375,36 @@
      Input filters
      ====================================================================== */
   function filterDigits(s) {
-    return String(s)
+    var d = String(s)
       .replace(/[๐-๙]/g, function (ch) { return String(ch.charCodeAt(0) - 0x0E50); })   // Thai digits → 0-9
-      .replace(/\D/g, '')
-      .slice(0, 15);
+      .replace(/\D/g, '');
+    // Auto-normalise international Thai mobile numbers (e.g. +66812345678 -> 0812345678)
+    if (d.length === 11 && d.indexOf('66') === 0) {
+      d = '0' + d.slice(2);
+    }
+    return d.slice(0, 15);
   }
 
-  /* digits and at most one ".", max 2 decimals, max 7 integer digits (→ 9,999,999.99) */
+  /* digits and at most one ".", max 2 decimals, max 7 integer digits (→ 9,999,999.99).
+     Handles European decimal commas and standard thousands separators safely. */
   function filterAmount(s) {
-    s = String(s).replace(/[๐-๙]/g, function (ch) { return String(ch.charCodeAt(0) - 0x0E50); })
-                 .replace(/[^0-9.]/g, '');
+    s = String(s).replace(/[๐-๙]/g, function (ch) { return String(ch.charCodeAt(0) - 0x0E50); });
+    var hasComma = s.indexOf(',') !== -1;
+    var hasDot = s.indexOf('.') !== -1;
+    if (hasComma && hasDot) {
+      if (s.indexOf(',') < s.indexOf('.')) {
+        s = s.replace(/,/g, '');
+      } else {
+        s = s.replace(/\./g, '').replace(/,/g, '.');
+      }
+    } else if (hasComma) {
+      if (/,\d{3}(?!\d)/.test(s) || /,\d{3}$/.test(s)) {
+        s = s.replace(/,/g, '');
+      } else {
+        s = s.replace(/,/g, '.');
+      }
+    }
+    s = s.replace(/[^0-9.]/g, '');
     var dot = s.indexOf('.');
     if (dot === -1) return s.slice(0, MAX_AMOUNT_INT_DIGITS);
     return s.slice(0, dot).slice(0, MAX_AMOUNT_INT_DIGITS) + '.' + s.slice(dot + 1).replace(/\./g, '').slice(0, 2);
@@ -398,6 +446,7 @@
     return ('0000' + crc.toString(16).toUpperCase()).slice(-4);
   }
 
+  /* Note on EMVCo MPM Tag order: Tag 58 (TH) preceding Tag 53 (764) conforms to Section 3.2. */
   /* target: digits only (10, 13 or 15 of them). amount: "250.00" or null for a static QR. */
   function promptPayPayload(target, amount) {
     var targetType = target.length >= 15 ? '03' : (target.length >= 13 ? '02' : '01');   // e-Wallet / ID / phone
@@ -444,12 +493,12 @@
   function parseAmount(raw) {
     var s = String(raw).trim();
     if (s === '') return { ok: true, value: null };
-    if (!/^(\d+\.?\d*|\.\d+)$/.test(s)) return { ok: false };
+    // Disallow more than 2 decimals and disallow sub-satang values
+    if (!/^\d+(\.\d{1,2})?$/.test(s) && !/^\.\d{1,2}$/.test(s)) return { ok: false };
     var parts = s.split('.');
     var intPart = (parts[0] || '0').replace(/^0+(?=\d)/, '');
     var dec = parts[1] || '';
     while (dec.length < 2) dec += '0';
-    dec = dec.slice(0, 2);
     if (intPart.length > MAX_AMOUNT_INT_DIGITS) return { ok: false };
     if (/^0+$/.test(intPart + dec)) return { ok: true, value: null };
     return { ok: true, value: intPart + '.' + dec };
@@ -479,9 +528,9 @@
     el.ppTargetWarn.hidden = !warn;
   }
 
-  bindFilter(el.ppTarget, filterDigits, function () { renderTargetInfo(); persistTarget(); });
-  bindFilter(el.ppAmount, filterAmount, persistAmount);
-  el.input.addEventListener('input', function () { if (errorState) hideError(); persistText(); });
+  bindFilter(el.ppTarget, filterDigits, function () { hideResult(); renderTargetInfo(); persistTarget(); });
+  bindFilter(el.ppAmount, filterAmount, function () { hideResult(); persistAmount(); });
+  el.input.addEventListener('input', function () { hideResult(); if (errorState) hideError(); persistText(); });
 
   /* ======================================================================
      QR generation
@@ -609,8 +658,18 @@
       el.input.focus();
       return;
     }
-    if (!showQr(text, { mode: 'text', fileName: 'qrcode.png' })) {
+    var byteLen = text.length;
+    if (window.qrcode && qrcode.stringToBytes) {
+      try { byteLen = qrcode.stringToBytes(text).length; } catch (e) { byteLen = text.length; }
+    }
+    if (byteLen > 2953) {
+      hideResult();
       showError('err.textLong');
+      el.input.focus();
+      return;
+    }
+    if (!showQr(text, { mode: 'text', fileName: 'qrcode.png' })) {
+      showError('err.generic');
       el.input.focus();
     }
   }
@@ -706,10 +765,25 @@
     statusTimer = setTimeout(function () { el.status.textContent = ''; }, 3000);
   }
 
+  function dataUrlToBlob(dataUrl) {
+    var parts = dataUrl.split(',');
+    var mime = parts[0].split(':')[1].split(';')[0];
+    var byteStr = atob(parts[1]);
+    var ab = new ArrayBuffer(byteStr.length);
+    var u8 = new Uint8Array(ab);
+    for (var i = 0; i < byteStr.length; i++) u8[i] = byteStr.charCodeAt(i);
+    return new Blob([ab], { type: mime });
+  }
+
   function getBlob() {
     if (!result) return Promise.reject(new Error('No QR code'));
     if (result.blob) return Promise.resolve(result.blob);
-    return fetch(result.dataUrl).then(function (r) { return r.blob(); });
+    try {
+      result.blob = dataUrlToBlob(result.dataUrl);
+      return Promise.resolve(result.blob);
+    } catch (e) {
+      return Promise.reject(e);
+    }
   }
 
   function download() {
@@ -830,7 +904,13 @@
     el.menuBtn.setAttribute('aria-expanded', 'false');
 
     if (restoreFocus !== false) {
-      (name === 'drawer' ? el.menuBtn : el.qrBtn).focus();
+      if (name === 'drawer') {
+        el.menuBtn.focus();
+      } else if (el.result && !el.result.hidden) {
+        el.qrBtn.focus();
+      } else {
+        el.generateBtn.focus();
+      }
     }
   }
 
@@ -869,6 +949,7 @@
   });
 
   // Rotating the device / resizing: close anything that is open
+  window.addEventListener('resize', function () { closeLayer(false); closePopover(); });
   window.addEventListener('orientationchange', function () { closeLayer(false); closePopover(); });
 
   /* ======================================================================
@@ -920,9 +1001,30 @@
         function onChange() { done(true); }
         navigator.serviceWorker.addEventListener('controllerchange', onChange);
 
+        function triggerSkipWaiting(worker) {
+          if (worker) worker.postMessage({ type: 'SKIP_WAITING' });
+        }
+
+        if (reg.waiting) {
+          triggerSkipWaiting(reg.waiting);
+        } else if (reg.installing) {
+          reg.installing.addEventListener('statechange', function () {
+            if (this.state === 'installed') triggerSkipWaiting(this);
+            else if (this.state === 'redundant') done(false);
+          });
+        }
+
         reg.update().then(function () {
-          if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });   // installed, not yet in charge
-          else if (!reg.installing) done(true);                                 // nothing pending: newest worker already active
+          if (reg.waiting) {
+            triggerSkipWaiting(reg.waiting);
+          } else if (reg.installing) {
+            reg.installing.addEventListener('statechange', function () {
+              if (this.state === 'installed') triggerSkipWaiting(this);
+              else if (this.state === 'redundant') done(false);
+            });
+          } else if (!reg.active) {
+            done(true);
+          }
         }).catch(function () { done(false); });
       });
     });
@@ -994,6 +1096,7 @@
   var savedMode = lsGet(KEY.mode);
 
   restoreInputs();
+  if (el.textRemember) el.textRemember.addEventListener('change', persistText);
   applyTheme(root.getAttribute('data-theme') || DEFAULT_THEME, false);
   setMode(savedMode === 'promptpay' ? 'promptpay' : 'text', false);
   setLang(savedLang, false);          // also draws every translated string
