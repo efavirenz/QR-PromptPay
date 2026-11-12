@@ -33,6 +33,12 @@ self.addEventListener('install', (event) => {
         const bustUrl = url + (url.indexOf('?') === -1 ? '?v=' : '&v=') + self.APP_VERSION;
         return new Request(bustUrl, { cache: 'reload' });
       })))
+      // If one asset fails, addAll rejects atomically. Remove the partial cache so a
+      // later retry starts clean, and tell open pages so they can stop waiting.
+      .catch((err) => caches.delete(CACHE_NAME).catch(() => {})
+        .then(() => self.clients.matchAll({ includeUncontrolled: true }))
+        .then((clients) => clients.forEach((client) => client.postMessage({ type: 'INSTALL_FAILED' })))
+        .then(() => { throw err; }))
   );
 });
 

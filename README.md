@@ -1,4 +1,4 @@
-# QR & PromptPay (PWA) — v2.1
+# QR & PromptPay (PWA) — v2.2
 
 A single-page app that turns text or links into a QR code and creates **PromptPay** QR codes for receiving money in Thailand. It is responsive on desktop and mobile, installable to the home screen (PWA), and works offline.
 There is no build step and no Node installation needed: it is plain HTML / CSS / JS, ready to deploy on GitHub Pages.
@@ -12,7 +12,7 @@ qr-generator-pwa/
 ├── sw.js                       # Service Worker (caching for offline use, update handling)
 ├── .nojekyll                   # Tells GitHub Pages not to process the site with Jekyll
 ├── README.md                   # Project documentation (English)
-├── AGENTS.md                   # Engineering standards, constraints, and architecture rules
+├── AGENTS.md                   # Engineering rules (local only; not published — see .gitignore)
 ├── css/
 │   └── style.css               # Styles + 10 colour themes (5 light, 5 dark)
 ├── js/
@@ -32,7 +32,7 @@ qr-generator-pwa/
 
 ## Features
 
-- **Top bar:** hamburger menu at the top **left** (the menu slides in from the left), version button (for example `v2.1`) at the top **right**
+- **Top bar:** hamburger menu at the top **left** (the menu slides in from the left), version button (for example `v2.2`) at the top **right**
 - **Two modes** (switch in the menu): **Text** and **PromptPay**
 - **Generate** button (themed colour) and **Clear** button (always red). The QR code appears below only after pressing Generate
 - **Desktop:** click the QR code to open a small menu with "Download QR Code" (saved as a `.png`)
@@ -72,10 +72,12 @@ Saved automatically, restored when you open the app again (only the input boxes 
 - **Clear** empties the boxes of the current mode **and** the saved values for them
 
 > **Privacy note:** `localStorage` is plain text on the device. A national ID is therefore **never stored**. Text input is saved only when explicitly opted in via "Remember this text" (default is off for shared device privacy). The destination is saved only when it is a complete 10-digit phone number starting with `0` or a 15-digit e-Wallet ID. Everything else, including the 11–12 digits typed on the way to a 13-digit ID, is not saved. (A phone number that is still half typed is therefore not restored.)
+>
+> Storage belongs to the whole site, not to this page: other projects you publish under the same `github.io` account (or the same domain) can read these keys. If the browser refuses storage (private browsing, full quota), the app still works, but nothing is remembered and a short warning is shown once per session.
 
 ### Version button and updates
 
-The button at the top right shows the app version, for example `v2.1`. Tap it to check for a new version:
+The button at the top right shows the app version, for example `v2.2`. Tap it to check for a new version:
 
 | Situation | What happens |
 |---|---|
@@ -110,7 +112,7 @@ python3 -m http.server 8080
 cd qr-generator-pwa
 git init
 git add .
-git commit -m "feat: QR & PromptPay v2.1"
+git commit -m "feat: QR & PromptPay v2.2"
 git branch -M main
 git remote add origin https://github.com/<USERNAME>/qr-generator-pwa.git
 git push -u origin main
@@ -140,7 +142,7 @@ This works because the app is fully static (no server code), every path is relat
 | Menu | Hamburger at the top left opens a drawer from the left: Language, Mode, Themes |
 | Language | Switch EN / TH: all text changes and the menu stays open |
 | Memory | Type something, close the tab, open the app again: the boxes are filled again (a 13-digit ID is not) |
-| Version button | Tap `v2.1` at the top right: "You are on the latest version." Turn off the network and tap again: the check is reported as not possible |
+| Version button | Tap `v2.2` at the top right: "You are on the latest version." Turn off the network and tap again: the check is reported as not possible |
 | Manifest / Service Worker | Chrome DevTools (F12) → **Application** tab → **Manifest** shows no errors, and **Service Workers** shows *activated and running* |
 | Offline | Application → Service Workers → tick **Offline**, then refresh. The app should still open and generate QR codes |
 | Install the app | Desktop Chrome: install icon in the address bar / Android Chrome: ⋮ menu → **Install app** or **Add to Home screen** / iOS Safari: Share button → **Add to Home Screen**. The name is **QR & PromptPay** |
@@ -149,7 +151,7 @@ This works because the app is fully static (no server code), every path is relat
 ## Releasing a new version (bumping the version)
 
 1. Make your changes.
-2. Edit **one line** in `js/version.js`: `self.APP_VERSION = '2.1';` → for example `'2.2'`. This single number is shown on the version button **and** names the offline cache (`qr-generator-v2.2`). Browsers notice that `sw.js` imports a changed file and download the new version.
+2. Edit **one line** in `js/version.js`: `self.APP_VERSION = '2.2';` → for example `'2.3'`. This single number is shown on the version button **and** names the offline cache (`qr-generator-v2.3`). Browsers notice that `sw.js` imports a changed file and download the new version.
 3. If you add a new file to the project, also add it to the `APP_SHELL` list in `sw.js`.
 4. Commit and push. After GitHub Pages finishes publishing (1–2 minutes), users can tap the version button to get the new version at once; others get it the next time they open the app.
 
@@ -160,19 +162,37 @@ To add or change theme colours: edit the `[data-theme="..."]` / `[data-sw="..."]
 ## Good to know
 
 - **iOS (Safari / installed app):** downloading may open the image instead of saving it right away. Use **Share → Save Image** (or long-press the image).
+- **Open menu / QR sheet:** the page behind an open drawer or sheet is locked with `overflow: hidden`. iOS Safari can still move the page slightly; closing the layer restores the exact position and focus.
 - **Text length:** a QR code holds at most 2,331 bytes (Level M) or up to 2,953 bytes (Level L fallback) in UTF-8. A Thai character takes 3 bytes. If the text is longer, the app shows a warning.
-- **Browser support:** modern mid-2022+ baseline (Chrome 105+, Safari 16+, Firefox 121+). Uses native modern Web APIs (`Element.prototype.closest`, CSS custom properties, Service Worker API, safe-area insets). No legacy polyfills or build steps required.
+- **Browser support:** modern mid-2022+ baseline (Chrome 105+, Safari 16+, Firefox 121+). Uses native modern Web APIs (`Element.prototype.closest`, CSS custom properties, Service Worker API, safe-area insets). No legacy polyfills or build steps required. Focus rings use `color-mix()` where available and fall back to a solid tint elsewhere; `dvh` has a `vh` fallback.
 - The generated QR code is always black on white with a white border (quiet zone) so it scans as reliably as possible. It does not change with the theme.
-- Everything is processed in the browser. What you type is never sent to any server. The only request the app makes by itself is reading `js/version.js` from its own site when you tap the version button.
+- Everything is processed in the browser. What you type is never sent to any server. Every network request the app makes goes to its own site: the Service Worker downloads the app shell when it installs or updates, and tapping the version button reads `js/version.js`. Nothing is sent anywhere else.
+- **Install splash and system title bar (Android):** the colours in `manifest.json` are fixed (the default light background and the blue accent), so the install splash and the system title bar do not follow a dark theme. The page's own status-bar colour does follow the selected theme.
 - On Android the home-screen label may be shortened if the launcher limits the length of `QR & PromptPay`.
 
 ## Updates
+
+### v2.2 (2026-11-12)
+
+- **Updates:**
+  - The update flow now waits up to **12 seconds** and polls the Service Worker state, so a worker that finishes installing between checks is not missed. An already-installed worker is activated immediately, and an install failure is reported ("The update did not finish") instead of hanging.
+  - If caching the app shell fails during install, the partial cache is deleted and the page is told, so the next attempt starts clean.
+- **Layout and accessibility:**
+  - A resize no longer closes the settings drawer or QR sheet on every URL-bar movement; only a width change of more than 80 px (rotation, split view) does, and focus returns to the button that opened it. The page behind an open layer no longer scrolls.
+  - The "Remember this text" checkbox is a full 44 px touch target, and the QR button now reports its open/closed state (`aria-expanded`).
+  - The PromptPay warning is a polite live region, so screen readers announce it.
+  - Focus rings have a solid-colour fallback for browsers without `color-mix()`.
+- **Privacy and storage:**
+  - A single warning is shown per session when the browser refuses `localStorage`, instead of failing silently.
+  - An invalid or retired theme value left in storage is deleted instead of being reused.
+- **Security:** the CSP now also restricts `base-uri` and `form-action` to the app itself.
+- **Documentation:** corrected the network, manifest-colour and browser-support claims; added the shared-origin storage note; recorded the vendored library's source and checksum.
 
 ### v2.1 (2026-10-27)
 
 - **Service Worker & Caching:**
   - Added cache-busting query strings (`?v=${self.APP_VERSION}`) on shell asset installation to bypass edge CDN caching.
-  - Implemented Network-First navigation with offline cache fallback to ensure instant updates upon new deployments while keeping offline support intact.
+  - Implemented Network-First navigation with offline cache fallback, so the HTML updates on the next open while offline support stays intact (JS/CSS change only with a version bump).
   - Removed unconditional `skipWaiting()` during install; activation now cleanly transitions on update reload without race conditions.
 - **PromptPay & Input Processing:**
   - Added smart decimal comma disambiguation in amount input (distinguishes European decimal commas like `12,50` from thousands separators like `1,500`).
@@ -196,3 +216,5 @@ To add or change theme colours: edit the `[data-theme="..."]` / `[data-sw="..."]
 ## License
 
 The app code is free to use. The `js/vendor/qrcode.js` library is [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator), Copyright © Kazuhiko Arase, under the MIT License. The PromptPay payload follows [kittinan/php-promptpay-qr](https://github.com/kittinan/php-promptpay-qr), itself inspired by [dtinth/promptpay-qr](https://github.com/dtinth/promptpay-qr).
+
+Vendored copy: npm package [`qrcode-generator`](https://www.npmjs.com/package/qrcode-generator) **2.0.4**, file `qrcode.js` (MIT). SHA-256 of the vendored file: `79ec86f82856005b1c887905cfccfcfbec3821ca61c7fd5a952faa5f778f791c`. Treat it as read-only: to upgrade, diff the new npm tarball's `qrcode.js` against this file and replace it wholesale — never hand-edit it.

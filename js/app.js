@@ -30,6 +30,7 @@
   var TARGET_PX = 1024;        // approximate size of the exported PNG
   var MAX_AMOUNT_INT_DIGITS = 7;           // 9,999,999.99 is the largest amount accepted
   var TOAST_MS = 3500;
+  var UPDATE_TIMEOUT_MS = 12000;   // keep the original 12 s deadline while the update flow polls for a new worker
 
   /* ---------- Elements ---------- */
   var $ = function (id) { return document.getElementById(id); };
@@ -65,6 +66,11 @@
   var statusTimer = null;
   var toastTimer = null;
   var checkingUpdate = false;
+  var lastWidth = window.innerWidth;   // used to tell a real rotation from a URL-bar resize
+  var appReady = false;                // true once the first full render has run
+  var storageFailed = false;           // set when a write to localStorage throws
+  var storageWarned = false;           // the warning is shown at most once per session
+  var installFailureHandler = null;    // set while an update is waiting for a new worker
 
   /* ---------- Make the QR library encode UTF-8 (Thai, emoji, …) ---------- */
   if (window.qrcode && qrcode.stringToBytesFuncs && qrcode.stringToBytesFuncs['UTF-8']) {
@@ -122,6 +128,7 @@
       'err.ppPhone0': 'A 10-digit phone number must start with 0.',
       'err.amountInvalid': 'Enter a valid amount, for example 250 or 250.50.',
       'err.qr': 'Could not create the QR code.',
+      'warn.storageFailed': 'Saving on this device is not available (private browsing?).',
 
       'result.label': 'Generated QR code',
       'qr.btnLabel': 'QR code. Press to open download options',
@@ -201,6 +208,7 @@
       'err.ppPhone0': 'เบอร์โทร 10 หลักต้องขึ้นต้นด้วย 0',
       'err.amountInvalid': 'จำนวนเงินไม่ถูกต้อง เช่น 250 หรือ 250.50',
       'err.qr': 'ไม่สามารถสร้าง QR Code ได้',
+      'warn.storageFailed': 'บันทึกข้อมูลบนอุปกรณ์นี้ไม่ได้ (อาจอยู่ในโหมดส่วนตัว)',
 
       'result.label': 'QR Code ที่สร้างแล้ว',
       'qr.btnLabel': 'QR Code กดเพื่อเปิดตัวเลือกดาวน์โหลด',
@@ -286,11 +294,20 @@
      Storage (localStorage can throw in private mode, so every call is guarded)
      ====================================================================== */
   function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function noteStorageFailure() {
+    storageFailed = true;
+    if (!appReady || storageWarned) return;
+    storageWarned = true;
+    toast(t('warn.storageFailed'));
+  }
   function lsSet(k, v) {
     try {
       localStorage.setItem(k, v);
+      return true;
     } catch (e) {
       if (window.console && console.warn) console.warn('[Storage] setItem failed:', k, e);
+      noteStorageFailure();
+      return false;
     }
   }
   function lsDel(k) { try { localStorage.removeItem(k); } catch (e) { /* ignore */ } }
@@ -879,7 +896,9 @@
     node.removeAttribute('inert');
     node.classList.add('open');
     el.scrim.classList.add('show');
+    document.body.classList.add('no-scroll');
     setBackgroundInert(true);
+    el.qrBtn.setAttribute('aria-expanded', name === 'sheet' ? 'true' : 'false');
 
     if (name === 'drawer') {
       el.menuBtn.setAttribute('aria-expanded', 'true');
@@ -900,8 +919,10 @@
     node.classList.remove('open');
     node.setAttribute('inert', '');
     el.scrim.classList.remove('show');
+    document.body.classList.remove('no-scroll');
     setBackgroundInert(false);
     el.menuBtn.setAttribute('aria-expanded', 'false');
+    el.qrBtn.setAttribute('aria-expanded', 'false');
 
     if (restoreFocus !== false) {
       if (name === 'drawer') {
@@ -948,9 +969,25 @@
     else closePopover(true);
   });
 
-  // Rotating the device / resizing: close anything that is open
-  window.addEventListener('resize', function () { closeLayer(false); closePopover(); });
-  window.addEventListener('orientationchange', function () { closeLayer(false); closePopover(); });
+  // Rotating the device closes open layers, but a small viewport change (the mobile
+  // URL bar hiding while scrolling) must not. Only a width jump of more than 80 px
+  // counts as a rotation / split-view change.
+  function onViewportChange() {
+    var w = window.innerWidth;
+    if (Math.abs(w - lastWidth) > 80) {
+      lastWidth = w;
+      closeLayer(true);        // restore focus to the button that opened the layer
+      closePopover(true);
+    } else {
+      lastWidth = w;
+    }
+  }
+  window.addEventListener('resize', onViewportChange);
+  window.addEventListener('orientationchange', function () {
+    lastWidth = window.innerWidth;
+    closeLayer(true);
+    closePopover(true);
+  });
 
   /* ======================================================================
      Toast + version check (top-right "vX.Y" button)
@@ -983,49 +1020,54 @@
       );
   }
 
-  /* Make the new files active. Resolves true when it is safe to reload, false if it did not finish. */
+  /* Make the new files active. Resolves true when it is safe to reload, false if it did not finish.
+     The update algorithm runs asynchronously, so a worker can finish installing between any
+     two checks. Poll while waiting, and send SKIP_WAITING to whichever worker is installed. */
   function activateNewVersion() {
     if (!('serviceWorker' in navigator) || location.protocol === 'file:') return Promise.resolve(true);
     return navigator.serviceWorker.getRegistration().then(function (reg) {
       if (!reg) return true;                    // no Service Worker: a plain reload is all there is
       return new Promise(function (resolve) {
         var settled = false;
-        var timer = setTimeout(function () { done(false); }, 12000);
+        var armed = null;
+        var timer = setTimeout(function () { done(false); }, UPDATE_TIMEOUT_MS);
+        var poll = setInterval(tick, 250);
+
         function done(ok) {
           if (settled) return;
           settled = true;
           clearTimeout(timer);
+          clearInterval(poll);
+          installFailureHandler = null;
           navigator.serviceWorker.removeEventListener('controllerchange', onChange);
           resolve(ok);
         }
         function onChange() { done(true); }
-        navigator.serviceWorker.addEventListener('controllerchange', onChange);
 
-        function triggerSkipWaiting(worker) {
-          if (worker) worker.postMessage({ type: 'SKIP_WAITING' });
-        }
-
-        if (reg.waiting) {
-          triggerSkipWaiting(reg.waiting);
-        } else if (reg.installing) {
-          reg.installing.addEventListener('statechange', function () {
-            if (this.state === 'installed') triggerSkipWaiting(this);
+        function arm(worker) {
+          if (!worker || worker === armed) return;
+          armed = worker;
+          if (worker.state === 'installed') {
+            worker.postMessage({ type: 'SKIP_WAITING' });
+            return;
+          }
+          worker.addEventListener('statechange', function () {
+            if (this.state === 'installed') this.postMessage({ type: 'SKIP_WAITING' });
             else if (this.state === 'redundant') done(false);
           });
         }
 
-        reg.update().then(function () {
-          if (reg.waiting) {
-            triggerSkipWaiting(reg.waiting);
-          } else if (reg.installing) {
-            reg.installing.addEventListener('statechange', function () {
-              if (this.state === 'installed') triggerSkipWaiting(this);
-              else if (this.state === 'redundant') done(false);
-            });
-          } else if (!reg.active) {
-            done(true);
-          }
-        }).catch(function () { done(false); });
+        function tick() {
+          if (settled) return;
+          if (reg.waiting) arm(reg.waiting);
+          if (reg.installing) arm(reg.installing);
+          if (!reg.active && !reg.waiting && !reg.installing) done(true);   // nothing to activate
+        }
+
+        navigator.serviceWorker.addEventListener('controllerchange', onChange);
+        installFailureHandler = function () { done(false); };   // the worker says install failed
+        tick();
+        reg.update().then(tick).catch(function () { done(false); });
       });
     });
   }
@@ -1094,6 +1136,8 @@
     lsSet(KEY.lang, savedLang);
   }
   var savedMode = lsGet(KEY.mode);
+  var savedTheme = lsGet(KEY.theme);
+  if (savedTheme && THEMES.indexOf(savedTheme) === -1) lsDel(KEY.theme);   // drop a retired/hostile value
 
   restoreInputs();
   if (el.textRemember) el.textRemember.addEventListener('change', persistText);
@@ -1101,9 +1145,19 @@
   setMode(savedMode === 'promptpay' ? 'promptpay' : 'text', false);
   setLang(savedLang, false);          // also draws every translated string
   announceUpdate();
+  appReady = true;
+  if (storageFailed && !storageWarned) {
+    storageWarned = true;
+    toast(t('warn.storageFailed'));
+  }
 
   /* ---------- Service worker (offline + installable) ---------- */
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+    navigator.serviceWorker.addEventListener('message', function (event) {
+      if (event.data && event.data.type === 'INSTALL_FAILED' && installFailureHandler) {
+        installFailureHandler();
+      }
+    });
     window.addEventListener('load', function () {
       // updateViaCache:'none' = always look at the server (not the HTTP cache) for sw.js and version.js
       navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
